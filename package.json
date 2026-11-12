@@ -90,7 +90,8 @@
         }
       ],
       "extendInfo": {
-        "LSUIElement": true
+        "LSUIElement": true,
+        "LSAppNapIsDisabled": true
       }
     },
     "publish": {

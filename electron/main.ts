@@ -1,4 +1,4 @@
-import { app, BrowserWindow, dialog, ipcMain, Menu, nativeTheme, powerSaveBlocker, shell, Tray } from 'electron';
+import { app, BrowserWindow, dialog, ipcMain, Menu, nativeTheme, shell, systemPreferences, Tray } from 'electron';
 import type { MenuItemConstructorOptions } from 'electron';
 import { fileURLToPath } from 'node:url';
 import fs from 'node:fs';
@@ -211,9 +211,22 @@ app.whenReady().then(() => {
   // 스로틀링한다 — 그 상태에서 전역 단축키를 누르면 spawn/팝업 창 생성이
   // 몇 초씩 늦게 반응하는데(사용자 리포트: "한참 있다가 나와서 여러 번
   // 누르게 됨"), 어떤 즉각적 피드백도 없어 오류로 오인하기 쉽다.
-  // prevent-app-suspension으로 앱 전체 생명주기 동안 App Nap을 꺼서 유휴
-  // 시간이 길어도 단축키 반응 속도가 떨어지지 않게 한다.
-  powerSaveBlocker.start('prevent-app-suspension');
+  // 그래서 App Nap을 끈다. 단, powerSaveBlocker('prevent-app-suspension')는
+  // 쓰지 않는다 — macOS에서 이건 "유휴 잠자기 금지" 신호(NoIdleSleep)라
+  // App Nap과 함께 Mac 전체의 잠자기까지 막았다(v0.2.8~). 대신 App Nap만
+  // 끄는 Apple 설정 두 가지를 겹쳐 쓴다:
+  //  1) Info.plist `LSAppNapIsDisabled` (package.json build.mac.extendInfo)
+  //  2) 이 앱의 사용자 기본값 `NSAppSleepDisabled` — 시작할 때 읽히므로
+  //     처음 쓴 실행의 다음 실행부터 적용된다. 1)이 이 실행 방식(LSUIElement,
+  //     launchd 직접 실행)에서 안 먹을 때의 받침이다.
+  // 확인: 활성 상태 보기 → 에너지 탭 "App Nap" 열이 "아니요", `pmset -g assertions`에
+  // HackMac 줄이 없어야 한다. App Nap이 "예"로 나오면 NSProcessInfo
+  // beginActivity(UserInitiatedAllowingIdleSystemSleep) 네이티브 모듈로 간다.
+  try {
+    systemPreferences.setUserDefault('NSAppSleepDisabled', 'boolean', true);
+  } catch (err) {
+    appLog.error('main', `NSAppSleepDisabled 쓰기 실패: ${describeError(err)}`);
+  }
 
   startPopupServer();
   initAutoUpdate();
