@@ -57,7 +57,12 @@ export interface AppView {
   /** 카피의 {hotkey:<key>}를 배정된 자리로 채운 선언. 켜져 있지 않으면 '단축키' */
   manifest: AppManifest | null;
   hotkeys: { key: string; name: string; slot: string | null }[];
+  /** 지울 수 있는가. HackMac이 함께 싣는 기본 앱은 지워도 다음 시작 때 다시 들어오므로 지우지 않는다 */
+  removable: boolean;
 }
+
+/** HackMac이 함께 싣는 기본 앱(installBundledV1이 넣는 것)의 이름표 */
+export const isBundledApp = (appId: string): boolean => appId.startsWith('hackmac.');
 
 /** 앱 상세의 설정 화면이 그리는 것. 선언한 settings·secrets가 그대로 입력칸이 된다 */
 export type AppSettingsView =
@@ -112,6 +117,8 @@ export class Platform {
   async applyFix(pkgDir: string, appId: string): Promise<{ ok: true; version: number } | { ok: false; error: string }> {
     const wasEnabled = this.live.has(appId);
     const before = this.store.get(appId)?.current ?? null;
+    // 고치는 사이에 사용자가 앱을 지웠다면 수정본으로 되살리지 않는다
+    if (before === null) return { ok: false, error: '지웠거나 설치돼 있지 않은 앱이에요' };
     const r = this.install(pkgDir);
     if (!r.ok) return { ok: false, error: r.errors.join('; ') };
     if (r.id !== appId) {
@@ -232,7 +239,7 @@ export class Platform {
     const hotkeys = manifest ? manifest.triggers.filter((t): t is Extract<Trigger, { kind: 'hotkey' }> => t.kind === 'hotkey').map((t) => ({ key: t.key, name: t.name, slot: s.hotkeys[slotId(a.id, t.key)] ?? null })) : [];
     const filled = manifest ? this.fillCopy(manifest, a.id, s.hotkeys) : null;
     const problems = read && !read.ok ? read.errors : this.problems.get(a.id) ?? [];
-    return { id: a.id, version: a.current, versions: a.versions, enabled, problems, manifest: filled, hotkeys };
+    return { id: a.id, version: a.current, versions: a.versions, enabled, problems, manifest: filled, hotkeys, removable: !isBundledApp(a.id) };
   }
 
   private readonly problems = new Map<string, string[]>();
@@ -407,6 +414,30 @@ export class Platform {
     this.settings.update({ hotkeys: release(s.hotkeys, appId), hotkeysPrevious: previous, enabled: s.enabled.filter((x) => x !== appId) });
     this.ledger.append({ kind: 'app.disabled', appId });
     if (this.live.size === 0) this.stopTicker();
+  }
+
+  /**
+   * 앱을 지운다: 끄고(단축키·상주·스케줄을 떼고) → 보관소의 모든 버전과 data/ → 설정값·단축키 기억 → 비밀값.
+   * 실행 로그와 원장은 남긴다(지난 일을 되짚을 수 있게). 스레드·유지보수 수정본은 호출자가 정리한다.
+   */
+  async removeApp(appId: string): Promise<{ ok: true } | { ok: false; error: string }> {
+    if (!this.store.get(appId)) return { ok: false, error: '설치돼 있지 않은 앱이에요' };
+    if (isBundledApp(appId)) return { ok: false, error: 'HackMac 기본 앱은 지울 수 없어요. 쓰지 않으려면 꺼 두세요' };
+    await this.disable(appId);
+    this.store.remove(appId, { keepData: false });
+    const s = this.settings.get();
+    const prefix = `${appId}/`;
+    const { [appId]: _gone, ...appSettings } = s.appSettings;
+    this.settings.update({
+      appSettings,
+      hotkeys: release(s.hotkeys, appId),
+      hotkeysPrevious: Object.fromEntries(Object.entries(s.hotkeysPrevious).filter(([id]) => !id.startsWith(prefix))),
+      enabled: s.enabled.filter((x) => x !== appId),
+    });
+    this.o.secrets?.clearApp(appId);
+    this.problems.delete(appId);
+    this.ledger.append({ kind: 'app.removed', appId });
+    return { ok: true };
   }
 
   /** 실행 서버가 다시 떴을 때. 하나가 실패해도 나머지는 켠다 */

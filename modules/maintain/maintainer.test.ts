@@ -302,3 +302,35 @@ describe('Maintainer: 적용·거절·실패·자동 적용', () => {
     expect(ui.offers).toHaveLength(before); // 이미 알린 것은 다시 알리지 않는다
   });
 });
+
+describe('Maintainer: 앱을 지웠을 때', () => {
+  it('forgetApp은 대기 중인 수정본을 버린다', async () => {
+    m.handle(runEnd()); m.handle(runEnd());
+    await settle();
+    expect(m.pending('a.app')).toHaveLength(1);
+    m.forgetApp('a.app');
+    expect(m.pending('a.app')).toEqual([]);
+  });
+
+  it('팀이 고치는 사이에 앱이 지워지면 결과를 버리고 알리지 않는다', async () => {
+    let gone = false;
+    let release!: () => void;
+    const m2 = make({
+      app: (id) => (id === 'a.app' && !gone ? { name: '미리알림 GTD', enabled } : null),
+      team: async (_inc, stage) => {
+        await new Promise<void>((r) => (release = r));
+        mkdirSync(stage, { recursive: true });
+        return teamResult;
+      },
+    });
+    m2.handle(runEnd()); m2.handle(runEnd());
+    await settle();
+    gone = true;
+    release();
+    await settle();
+    expect(m2.pending()).toEqual([]);
+    expect(ui.offers).toEqual([]);
+    expect(notices).toEqual([]);
+    expect(kinds()).toContain('maintain.dropped');
+  });
+});

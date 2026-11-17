@@ -8,9 +8,10 @@ interface Props {
   onToggle: (service: ServiceMeta) => void;
   onExport: (service: ServiceMeta) => void;
   onEdit: (service: ServiceMeta) => void;
+  onRemove: (service: ServiceMeta) => void;
 }
 
-export function ServiceDetail({ service, onToggle, onExport, onEdit }: Props) {
+export function ServiceDetail({ service, onToggle, onExport, onEdit, onRemove }: Props) {
   const [maint, setMaint] = useState<MaintenanceView | null>(null);
   const [maintMsg, setMaintMsg] = useState<string | null>(null);
   const refresh = useCallback(() => void window.playbook.maintenance(service.id).then(setMaint), [service.id]);
@@ -169,6 +170,14 @@ export function ServiceDetail({ service, onToggle, onExport, onEdit }: Props) {
           />
           앱에 문제가 생겨 HackMac이 고치면 확인 없이 바로 적용하기 (적용한 뒤에는 알려 드려요)
         </label>
+      )}
+
+      {service.removable && (
+        <div className="remove-app">
+          <button className="link-button remove-app-button" data-remove-app-open={service.id} onClick={() => onRemove(service)}>
+            이 앱 지우기
+          </button>
+        </div>
       )}
     </div>
   );

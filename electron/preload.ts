@@ -20,6 +20,8 @@ const api = {
   revealFile: (file: string): Promise<void> => ipcRenderer.invoke('bundle:reveal', file),
   activateService: (id: string): Promise<ActivateResult> => ipcRenderer.invoke('services:activate', id),
   deactivateService: (id: string): Promise<void> => ipcRenderer.invoke('services:deactivate', id),
+  /** 앱을 지운다(끄고, 보관소·설정·비밀값·데이터를 지우고, 만든 대화는 보관함으로) */
+  removeService: (id: string): Promise<{ ok: true } | { ok: false; error: string }> => ipcRenderer.invoke('services:remove', id),
   getAppVersion: (): Promise<string> => ipcRenderer.invoke('app:getVersion'),
   openLogsFolder: (): Promise<string> => ipcRenderer.invoke('logs:open'),
   checkForUpdates: (): Promise<UpdateCheckResult> => ipcRenderer.invoke('updates:check'),
@@ -61,6 +63,8 @@ const studioApi = {
   openUrl: (url: string): Promise<void> => ipcRenderer.invoke('login:openUrl', url),
   threads: (): Promise<ThreadView[]> => ipcRenderer.invoke('threads:list'),
   createThread: (title: string): Promise<ThreadMeta> => ipcRenderer.invoke('threads:create', title),
+  /** 아직 내 앱에 들어가지 않은 대화를 지운다(보관함으로 옮긴다) */
+  removeThread: (id: string): Promise<{ ok: true } | { ok: false; error: string }> => ipcRenderer.invoke('threads:remove', id),
   /** 앱 상세의 [수정하기]: 그 앱의 스레드를 수정 모드로 연다 */
   editApp: (appId: string): Promise<{ ok: true; threadId: string } | { ok: false; error: string }> => ipcRenderer.invoke('apps:edit', appId),
   thread: (id: string): Promise<ThreadView | null> => ipcRenderer.invoke('threads:get', id),

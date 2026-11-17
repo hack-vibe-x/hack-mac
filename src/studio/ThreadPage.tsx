@@ -2,12 +2,15 @@ import { useEffect, useRef, useState } from 'react';
 import { RichText } from '../components/RichText';
 import { VENDOR_LABEL, type AccountsView, type BuildState, type Message, type RecipeView, type ReqStatus, type ThreadMeta } from '../../shared/studio';
 import { RecipeDialog } from './RecipeDialog';
+import { ConfirmDeleteDialog } from '../components/ConfirmDeleteDialog';
 
 interface Props {
   threadId: string;
   /** 뒤로 가기는 툴바(src/App.tsx)가 한다 — 상세 화면과 같은 자리 */
   onBack?: () => void;
   onOpenApp: (appId: string) => void;
+  /** 대화를 지웠다 → 홈으로 */
+  onRemoved: (title: string) => void;
 }
 
 /** 계획서 7.1의 여섯 단계(modules/build/progress.ts STEPS와 같다) */
@@ -25,7 +28,7 @@ const VERDICT_LABEL = { possible: '가능', conditional: '조건부 가능', imp
  * 스레드 하나 = 앱 하나(계획서 8.4). 왼쪽은 상태, 오른쪽은 채팅. 채팅은 언제나 오른쪽에 있고 왼쪽만 바뀐다.
  * 진행 상태는 엔진 글에서 추측하지 않는다 — 지금은 ① 단계 고정이고, 4단계에서 구조화된 진행 사건이 들어온다.
  */
-export function ThreadPage({ threadId, onOpenApp }: Props) {
+export function ThreadPage({ threadId, onOpenApp, onRemoved }: Props) {
   const [meta, setMeta] = useState<ThreadMeta | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [streaming, setStreaming] = useState('');
@@ -36,6 +39,7 @@ export function ThreadPage({ threadId, onOpenApp }: Props) {
   const [recipe, setRecipe] = useState<Extract<RecipeView, { ok: true }> | null>(null);
   const [recipeBusy, setRecipeBusy] = useState(false);
   const [build, setBuild] = useState<BuildState | null>(null);
+  const [removing, setRemoving] = useState<'ask' | 'busy' | null>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const startedAt = useRef<number | null>(null);
   const [, tick] = useState(0);
@@ -102,6 +106,20 @@ export function ThreadPage({ threadId, onOpenApp }: Props) {
     else setNotice(r.error);
   };
 
+  const remove = async () => {
+    setRemoving('busy');
+    const r = await window.studio.removeThread(threadId);
+    setRemoving(null);
+    if (r.ok) onRemoved(meta?.title ?? '');
+    else setNotice(r.error);
+  };
+
+  // 지울 수 있는 건 아직 내 앱에 들어가지 않은 대화만(들어간 앱은 앱 상세에서 지운다)
+  const building = build?.pipeline?.status === 'running';
+  const talked = messages.filter((m) => m.role !== 'notice').length;
+  const hasUserText = messages.some((m) => m.role === 'user');
+  const reqCount = build?.requirements.length ?? 0;
+
   const elapsed = startedAt.current ? Math.floor((Date.now() - startedAt.current) / 1000) : 0;
 
   const manualRubric = build?.rubric?.items.filter((x) => x.how === 'manual') ?? [];
@@ -109,6 +127,26 @@ export function ThreadPage({ threadId, onOpenApp }: Props) {
   return (
     <div className="thread-page">
       {recipe && <RecipeDialog recipe={recipe} onClose={() => setRecipe(null)} />}
+      {removing && meta && (
+        <ConfirmDeleteDialog
+          testId={{ attr: 'remove-thread', value: threadId }}
+          confirmAttr={{ attr: 'confirm-remove-thread', value: threadId }}
+          title={`'${meta.title}' 대화를 지울까요?`}
+          items={[
+            talked > 0 ? `주고받은 글 ${talked}개` : '아직 아무 말도 하지 않은 빈 대화',
+            ...(reqCount > 0 ? [`정리한 요구사항 ${reqCount}개`] : []),
+            ...(build && build.step > 1 ? ['만들던 앱 초안'] : []),
+          ]}
+          warning={
+            hasUserText
+              ? '되돌릴 수 없어요. 나중에 같은 앱을 다시 만들고 싶다면 지우기 전에 [레시피 만들기]로 받아 두세요.'
+              : '되돌릴 수 없어요.'
+          }
+          busy={removing === 'busy'}
+          onConfirm={() => void remove()}
+          onCancel={() => setRemoving(null)}
+        />
+      )}
       <aside className="thread-status">
         <h1 className="thread-title">{meta?.title ?? ''}</h1>
         <p className="thread-engine">{meta?.vendor ? `${VENDOR_LABEL[meta.vendor]}로 만드는 중` : '첫 글을 보내면 시작해요'}</p>
@@ -297,6 +335,20 @@ export function ThreadPage({ threadId, onOpenApp }: Props) {
               ))}
             </ol>
           </details>
+        )}
+        {/* 방금 설치된 경우 meta.appId는 아직 옛 값이라 build.installed도 본다 */}
+        {meta && !meta.appId && !build?.installed && (
+          <div className="remove-thread">
+            <button
+              className="link-button remove-app-button"
+              data-remove-thread-open={threadId}
+              disabled={busy || building}
+              title={busy || building ? '답을 쓰거나 만드는 중에는 지울 수 없어요' : undefined}
+              onClick={() => setRemoving('ask')}
+            >
+              이 대화 지우기
+            </button>
+          </div>
         )}
       </aside>
 

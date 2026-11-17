@@ -69,7 +69,16 @@ export interface StudioServices {
   memoryOfApp: (appId: string) => string;
 }
 
-export function startStudio(platform: Platform): { stop: () => Promise<void>; services: StudioServices } {
+export interface StudioHandle {
+  stop: () => Promise<void>;
+  services: StudioServices;
+  /** 앱을 지워도 되는가. 그 앱을 만들거나 고치는 중이면 이유를 돌려준다 */
+  removeBlocker: (appId: string) => string | null;
+  /** 지운 앱의 스레드를 보관함으로 옮긴다(계획서 12.1: 바로 지우지 않는다). 옮긴 스레드 수 */
+  archiveAppThreads: (appId: string) => Promise<number>;
+}
+
+export function startStudio(platform: Platform): StudioHandle {
   const threads = new ThreadStore(path.join(app.getPath('userData'), 'threads'));
   const logins = createLogins({ spawn, bin: binFor, log: fileLogger(path.join(app.getPath('logs'), 'accounts')) });
   const accounts = new AccountStore(path.join(app.getPath('userData'), 'accounts.json'), path.join(app.getPath('userData'), 'accounts'));
@@ -427,6 +436,21 @@ export function startStudio(platform: Platform): { stop: () => Promise<void>; se
     }),
   );
   ipcMain.handle('threads:create', (_e, title: string): ThreadMeta => threads.create(String(title ?? '')));
+  // "만드는 중"의 대화 지우기: 아직 내 앱에 들어가지 않은 대화만. 답을 쓰는 중이면 멈추고, 전문 담당들이 만드는 중이면 거절한다.
+  // 원문 대화는 바로 지우지 않고 보관함으로 옮긴다(계획서 12.1과 같은 규칙)
+  ipcMain.handle('threads:remove', async (_e, rawId: string): Promise<{ ok: true } | { ok: false; error: string }> => {
+    const id = String(rawId);
+    const meta = threads.get(id);
+    if (!meta) return { ok: false, error: '없는 대화예요' };
+    if (meta.appId) return { ok: false, error: '이미 내 앱에 들어간 대화예요. 앱 상세에서 앱을 지우면 대화도 함께 정리돼요' };
+    if (builders.get(id)?.busy) return { ok: false, error: '전문 담당들이 만드는 중이에요. 끝난 뒤에 지워 주세요' };
+    await chats.close(id);
+    builders.get(id)?.stop();
+    builders.delete(id);
+    threads.archive(id);
+    appLog.info('studio', `만들던 대화 지움: 스레드 ${id} → 보관함`);
+    return { ok: true };
+  });
   ipcMain.handle('threads:get', (_e, id: string): ThreadView | null => {
     const meta = threads.get(id);
     return meta ? { meta, messages: threads.messages(id), busy: chats.busy(id) } : null;
@@ -528,7 +552,23 @@ export function startStudio(platform: Platform): { stop: () => Promise<void>; se
     },
   };
 
+  const threadsOf = (appId: string) => threads.list().filter((t) => t.appId === appId);
+
   return {
+    removeBlocker: (appId) =>
+      threadsOf(appId).some((t) => chats.busy(t.id) || (builders.get(t.id)?.busy ?? false))
+        ? '이 앱을 지금 만들거나 고치는 중이에요. 끝난 뒤에 지워 주세요'
+        : null,
+    archiveAppThreads: async (appId) => {
+      const list = threadsOf(appId);
+      for (const t of list) {
+        await chats.close(t.id);
+        builders.get(t.id)?.stop();
+        builders.delete(t.id);
+        threads.archive(t.id);
+      }
+      return list.length;
+    },
     stop: async () => {
       clearInterval(compactTimer);
       for (const b of builders.values()) b.stop();

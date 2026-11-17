@@ -3,6 +3,7 @@ import type { ServiceMeta, ThemePreference } from '../shared/types';
 import { VENDOR_LABEL, type AccountsView, type BundlePreview, type ThreadView } from '../shared/studio';
 import { ServiceGrid } from './store/ServiceGrid';
 import { ServiceDetail } from './detail/ServiceDetail';
+import { RemoveAppDialog } from './detail/RemoveAppDialog';
 import { ToastStack, useToasts } from './components/Toast';
 import { MoreMenu } from './components/MoreMenu';
 import { AccountsDialog } from './studio/AccountsDialog';
@@ -22,6 +23,7 @@ export default function App() {
   const [bundle, setBundle] = useState<{ file: string; preview: BundlePreview } | null>(null);
   const [installing, setInstalling] = useState(false);
   const [showAccounts, setShowAccounts] = useState(false);
+  const [removing, setRemoving] = useState<{ service: ServiceMeta; busy: boolean } | null>(null);
   const [scrolled, setScrolled] = useState(false);
   const contentRef = useRef<HTMLElement>(null);
   const { toasts, push, dismiss } = useToasts();
@@ -77,6 +79,20 @@ export default function App() {
     if (!r.ok) return push(`수정을 시작하지 못했어요: ${r.error}`, 'error');
     void window.studio.threads().then(setThreads);
     setView({ name: 'thread', threadId: r.threadId });
+  };
+
+  // 앱 상세의 [이 앱 지우기] → 확인 창 → 지우고 홈으로
+  const handleRemove = async () => {
+    if (!removing) return;
+    const { service } = removing;
+    setRemoving({ service, busy: true });
+    const r = await window.playbook.removeService(service.id);
+    setRemoving(null);
+    if (!r.ok) return push(`지우지 못했어요: ${r.error}`, 'error');
+    setServices(await window.playbook.listServices());
+    void window.studio.threads().then(setThreads);
+    setView({ name: 'store' });
+    push(`${service.icon} ${service.name}을(를) 지웠어요`);
   };
 
   const handleCreate = async () => {
@@ -196,6 +212,11 @@ export default function App() {
             void window.studio.threads().then(setThreads);
             setView({ name: 'store' });
           }}
+          onRemoved={(title) => {
+            void window.studio.threads().then(setThreads);
+            setView({ name: 'store' });
+            push(`'${title}' 대화를 지웠어요`);
+          }}
           onOpenApp={(appId) => {
             void window.playbook.listServices().then((list) => {
               setServices(list);
@@ -245,8 +266,17 @@ export default function App() {
         {bundle && (
           <BundlePreviewDialog preview={bundle.preview} busy={installing} onInstall={() => void handleInstallBundle()} onCancel={() => setBundle(null)} />
         )}
+        {removing && (
+          <RemoveAppDialog service={removing.service} busy={removing.busy} onRemove={() => void handleRemove()} onCancel={() => setRemoving(null)} />
+        )}
         {isDetail ? (
-          <ServiceDetail service={selected} onToggle={handleToggle} onExport={handleExport} onEdit={(x) => void handleEdit(x)} />
+          <ServiceDetail
+            service={selected}
+            onToggle={handleToggle}
+            onExport={handleExport}
+            onEdit={(x) => void handleEdit(x)}
+            onRemove={(x) => setRemoving({ service: x, busy: false })}
+          />
         ) : (
           <>
             <header className="app-header">

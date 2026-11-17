@@ -667,6 +667,42 @@
   font-size: var(--fs-small);
 }
 
+/* ── 앱 지우기 ───────────────────────────
+   되돌릴 수 없는 일이라 상세 맨 아래에 조용히 두고(헤더의 주 행동과 겨루지 않게), 확인 창에서만 빨간 버튼을 쓴다. */
+.remove-app {
+  margin-top: var(--sp-8);
+  padding-top: var(--sp-4);
+  border-top: 1px solid var(--border);
+}
+
+.remove-app-button {
+  color: var(--danger);
+  font-size: var(--fs-small);
+}
+
+.remove-app-button:disabled {
+  color: var(--text-faint);
+  cursor: default;
+  opacity: 1;
+}
+
+.remove-thread {
+  margin-top: var(--sp-6);
+  padding-top: var(--sp-3);
+  border-top: 1px solid var(--border);
+}
+
+/* 흰 글자와 대비 4.5:1 이상을 지키려고 다크에서도 밝은 --danger 대신 진한 빨강을 쓴다 */
+.toggle-button.danger-button {
+  background: #d70015;
+  border-color: #d70015;
+  color: #ffffff;
+}
+
+.toggle-button.danger-button:hover:not(:disabled) {
+  filter: brightness(0.92);
+}
+
 /* ── 레시피 ───────────────────────────── */
 .recipe-button {
   margin: 0 0 var(--sp-4);

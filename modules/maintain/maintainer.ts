@@ -194,6 +194,12 @@ export class Maintainer {
       result = { ok: false, reason: `유지보수 팀이 오류로 멈췄어요: ${(err as Error).message}` };
     }
     try {
+      // 팀이 고치는 사이에 사용자가 앱을 지웠다: 결과를 버리고 알리지 않는다
+      if (this.d.app(inc.appId) === null) {
+        rmSync(stage, { recursive: true, force: true });
+        this.d.ledger.append({ kind: 'maintain.dropped', appId: inc.appId, fixId: inc.fixId, reason: 'app removed' });
+        return;
+      }
       if (!result.ok) {
         rmSync(stage, { recursive: true, force: true });
         this.d.ledger.append({ kind: 'maintain.failed', appId: inc.appId, fixId: inc.fixId, reason: result.reason });
@@ -266,6 +272,12 @@ export class Maintainer {
     rmSync(join(this.d.pendingRoot, fixId), { recursive: true, force: true });
     this.d.ledger.append({ kind: 'maintain.dismissed', appId: fix.appId, fixId });
     return true;
+  }
+
+  /** 앱을 지웠다: 대기 중인 수정본과 아직 팀을 부르지 않은 사건을 버린다(고치는 중인 것은 끝날 때 버려진다) */
+  forgetApp(appId: string): void {
+    this.queue.delete(appId);
+    for (const f of this.pending(appId)) rmSync(join(this.d.pendingRoot, f.id), { recursive: true, force: true });
   }
 
   /** 앱 상세에 보일 유지보수 기록(최근 30일, 새것부터) */

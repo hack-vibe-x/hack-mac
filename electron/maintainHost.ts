@@ -47,7 +47,7 @@ const tailOf = (file: string | null, n = 8000): string => {
 };
 
 
-export function startMaintain(platform: Platform, studio: StudioServices): { stop: () => void } {
+export function startMaintain(platform: Platform, studio: StudioServices): { stop: () => void; forgetApp: (appId: string) => void } {
   const logsRoot = app.getPath('logs');
   const pendingRoot = path.join(app.getPath('userData'), 'maintenance', 'pending');
   let maintainer: Maintainer;
@@ -147,6 +147,7 @@ export function startMaintain(platform: Platform, studio: StudioServices): { sto
   });
 
   return {
+    forgetApp: (appId) => maintainer.forgetApp(appId),
     stop: () => {
       off();
       clearInterval(timer);

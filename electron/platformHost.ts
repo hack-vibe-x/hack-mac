@@ -153,6 +153,7 @@ export function toServiceMeta(v: AppView): ServiceMeta | null {
     usage: m.usage,
     shortcuts,
     isActive: v.enabled,
+    removable: v.removable,
   };
 }
 

@@ -155,6 +155,53 @@ describe('Platform', () => {
     expect(p2.restore()).toEqual({ enabled: ['jiho.t'], failed: [{ id: 'ghost.app', reason: '설치돼 있지 않거나 현재 버전이 없음' }] });
     expect([...registered.keys()]).toEqual(['Alt+1']);
   });
+  describe('앱 지우기', () => {
+    it('켜진 앱을 지우면 단축키를 떼고 보관소·설정·단축키 기억·비밀값을 지운다. 원장은 남는다', async () => {
+      const secrets = new SecretStore(join(tmp, 'secrets.json'), fakeCrypto());
+      const p = platform({ secrets });
+      p.install(makePkg('a', { secrets: [{ key: 'api-key', label: 'API 키' }] }));
+      await p.setAppSetting('jiho.t', 'greeting', 'yo');
+      await p.setAppSecret('jiho.t', 'api-key', 'sk-1');
+      p.enable('jiho.t');
+      await p.disable('jiho.t');
+      p.enable('jiho.t');
+      expect(p.list()[0]!.removable).toBe(true);
+
+      expect(await p.removeApp('jiho.t')).toEqual({ ok: true });
+      expect(registered.size).toBe(0);
+      expect(p.list()).toEqual([]);
+      expect(p.store.get('jiho.t')).toBeNull();
+      expect(p.settings.get()).toMatchObject({ enabled: [], hotkeys: {}, hotkeysPrevious: {}, appSettings: {} });
+      expect(secrets.has('jiho.t', 'api-key')).toBe(false);
+      expect(p.ledger.read().at(-1)).toMatchObject({ kind: 'app.removed', appId: 'jiho.t' });
+    });
+
+    it('지운 뒤 같은 id를 다시 설치하면 새 앱처럼 1번째 버전으로 들어온다', async () => {
+      const p = platform();
+      p.install(makePkg('a'));
+      p.install(makePkg('a'));
+      await p.removeApp('jiho.t');
+      expect(p.install(makePkg('a'))).toMatchObject({ ok: true, version: 1 });
+    });
+
+    it('기본 앱과 없는 앱은 지우지 않는다', async () => {
+      const p = platform();
+      p.installBundledV1(GTD_SERVICES);
+      expect(p.list()[0]!.removable).toBe(false);
+      expect(await p.removeApp('hackmac.gtd-reminders')).toMatchObject({ ok: false });
+      expect(p.store.get('hackmac.gtd-reminders')).not.toBeNull();
+      expect(await p.removeApp('jiho.none')).toMatchObject({ ok: false });
+    });
+
+    it('지운 앱의 수정본은 적용하지 않는다(유지보수가 되살리지 않게)', async () => {
+      const p = platform();
+      p.install(makePkg('a'));
+      await p.removeApp('jiho.t');
+      expect(await p.applyFix(makePkg('b'), 'jiho.t')).toMatchObject({ ok: false });
+      expect(p.store.get('jiho.t')).toBeNull();
+    });
+  });
+
   describe('앱 설정 화면', () => {
     it('선언한 설정이 칸이 되고, 바꾼 값은 검증돼 저장되며 다음 실행부터 스크립트가 받는다', async () => {
       const p = platform();

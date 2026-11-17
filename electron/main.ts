@@ -6,11 +6,11 @@ import path from 'node:path';
 import { createTrayIcon } from './tray-icon';
 import { logsRoot } from './exec-log';
 import { checkForUpdatesManually, initAutoUpdate } from './updater';
-import { appLog, describeError } from './log';
+import { appLog, describeError, serviceTag } from './log';
 import { startPopupServer, stopPopupServer } from './popupServer';
 import { activateService, createPlatform, listServices, themeOf } from './platformHost';
 import { startMaintain } from './maintainHost';
-import { startStudio } from './studioHost';
+import { startStudio, type StudioHandle } from './studioHost';
 import type { Platform } from '../modules/platform/platform';
 import { readPackage } from '../modules/store/store';
 import type { ThemePreference } from '../shared/types';
@@ -49,7 +49,7 @@ const RENDERER_DIST = path.join(APP_ROOT, 'dist');
 // e2e/helpers.ts가 각 테스트를 격리된 userData로 띄운다 — 실행 중인 실제 앱과
 // 소켓/설정 파일/단일 인스턴스 락이 전혀 겹치지 않게 하려는 것. CI(및 이
 // 앱을 시작하는 자동화 세션)에서는 실제 사람이 화면을 보지 않으므로,
-// 이어지는 창들도 화면 밖에 조용히 띄운다 — mind-map-mac의 MINDMAP_E2E_QUIET과
+// 이어지는 창들도 화면 밖에 조용히 띄운다 — hack-mind-map-for-mac의 MINDMAP_E2E_QUIET과
 // 같은 패턴, 자세한 이유는 docs/e2e.md 참고.
 const E2E_QUIET = process.env.HACKMAC_E2E_QUIET === '1' && !process.env.CI;
 if (process.env.HACKMAC_USER_DATA) {
@@ -64,8 +64,8 @@ if (!gotSingleInstanceLock) app.quit();
 let mainWindow: BrowserWindow | null = null;
 let tray: Tray | null = null;
 let platform: Platform | null = null;
-let studio: { stop: () => Promise<void> } | null = null;
-let maintain: { stop: () => void } | null = null;
+let studio: StudioHandle | null = null;
+let maintain: ReturnType<typeof startMaintain> | null = null;
 
 function createMainWindow() {
   if (mainWindow && !mainWindow.isDestroyed()) {
@@ -181,7 +181,7 @@ app.whenReady().then(() => {
 
   // 'accessory' 정책은 dock.hide()에 더해 "실행 시 자동으로 최전면 활성화"까지
   // 막아준다 — E2E는 사람이 화면을 보지 않는 자동화 실행이라, 다른 창의
-  // 키보드 포커스를 뺏지 않게 이 정책까지 켠다(mind-map-mac과 같은 패턴).
+  // 키보드 포커스를 뺏지 않게 이 정책까지 켠다(hack-mind-map-for-mac과 같은 패턴).
   if (E2E_QUIET && process.platform === 'darwin') {
     app.setActivationPolicy('accessory');
   }
@@ -303,6 +303,23 @@ ipcMain.handle('services:list', () => listServices(requirePlatform()));
 ipcMain.handle('services:activate', (_e, id: string) => activateService(requirePlatform(), id));
 
 ipcMain.handle('services:deactivate', (_e, id: string) => requirePlatform().disable(id));
+
+// 앱 지우기: 만들거나 고치는 중이면 거절 → 끄고 보관소·설정·비밀값을 지운다 → 대기 중인 수정본을 버리고 → 스레드는 보관함으로.
+// 실행 로그와 원장은 남긴다(지난 일을 되짚을 수 있게)
+ipcMain.handle('services:remove', async (_e, rawId: string): Promise<{ ok: true } | { ok: false; error: string }> => {
+  const id = String(rawId);
+  const blocker = studio?.removeBlocker(id) ?? null;
+  if (blocker) return { ok: false, error: blocker };
+  const r = await requirePlatform().removeApp(id);
+  if (!r.ok) {
+    appLog.warn('platform', `${serviceTag(id)} 지우기 거절: ${r.error}`);
+    return r;
+  }
+  maintain?.forgetApp(id);
+  const archived = (await studio?.archiveAppThreads(id)) ?? 0;
+  appLog.info('platform', `${serviceTag(id)} 지움 — 스레드 ${archived}개를 보관함으로`);
+  return r;
+});
 
 // 앱 상세의 설정 화면: 선언한 settings·secrets를 읽고 바꾼다. 비밀값은 저장만 되고 값을 돌려주지 않는다
 ipcMain.handle('appsettings:get', (_e, appId: string) => requirePlatform().appSettingsView(String(appId)));

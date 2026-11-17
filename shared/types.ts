@@ -32,6 +32,8 @@ export interface ServiceManifest {
 export interface ServiceMeta extends ServiceManifest {
   shortcuts: ServiceShortcut[];
   isActive: boolean;
+  /** 지울 수 있는가. HackMac 기본 앱은 false(지워도 다음 시작 때 다시 들어온다) */
+  removable: boolean;
 }
 
 export interface RunResult {
