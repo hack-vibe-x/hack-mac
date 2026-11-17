@@ -14,7 +14,7 @@
     "predist": "npm run kill:dev --silent",
     "dist": "npm run test:e2e && APPLE_KEYCHAIN_PROFILE=hackmac-notary electron-builder --publish never",
     "prerelease": "npm run kill:dev --silent",
-    "release": "npm run test:e2e && GH_TOKEN=$(gh auth token --user SteveKim0513) APPLE_KEYCHAIN_PROFILE=hackmac-notary electron-builder --publish always",
+    "release": "npm run test:e2e && GH_TOKEN=$(gh auth token --user hack-vibe-x) APPLE_KEYCHAIN_PROFILE=hackmac-notary electron-builder --publish always",
     "typecheck": "tsc --noEmit && vitest run",
     "test:e2e": "npm run build && npm run kill:dev --silent && playwright test",
     "kill:dev": "pkill -f \"$(pwd)/node_modules/electron/dist/Electron.app\" 2>/dev/null; true",
@@ -96,8 +96,8 @@
     },
     "publish": {
       "provider": "github",
-      "owner": "SteveKim0513",
-      "repo": "hackmac"
+      "owner": "hack-vibe-x",
+      "repo": "hack-mac"
     }
   }
 }

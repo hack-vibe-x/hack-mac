@@ -9,7 +9,7 @@
 | 하는 일 | 완성된 서비스(단축키 묶음)를 켜고 끄는 macOS 서비스 스토어 |
 | 설계 문서 | [LOCKED-DOWN-APP-PROPOSAL.md](../LOCKED-DOWN-APP-PROPOSAL.md), `CLAUDE.md` "서비스 설계 원칙" |
 | 지금 단계 | README의 "지금 들어있는 서비스" |
-| 기술 | Electron + React + TypeScript, npm. 배포는 GitHub Releases(`SteveKim0513/hackmac`) + electron-updater |
+| 기술 | Electron + React + TypeScript, npm. 배포는 GitHub Releases(`hack-vibe-x/hack-mac`) + electron-updater |
 | 검증 명령 | `CLAUDE.md` "Required Commands" |
 | 디자인 값 | [docs/design.md](design.md) |
 | 용어집 | 해당 없음 |

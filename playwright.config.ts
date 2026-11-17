@@ -1,6 +1,6 @@
 import { defineConfig } from '@playwright/test';
 
-// mind-map-mac과 같은 패턴 — Electron 앱을 Playwright의 `_electron` 드라이버로
+// hack-mind-map-for-mac과 같은 패턴 — Electron 앱을 Playwright의 `_electron` 드라이버로
 // 직접 띄워 CDP로 조작한다. 각 테스트가 독립된 userData(임시 폴더)로 자체
 // 인스턴스를 띄우므로(e2e/helpers.ts) 병렬 실행이 안전하다. 자세한 설명은
 // docs/e2e.md 참고.

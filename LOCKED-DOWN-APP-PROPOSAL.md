@@ -41,7 +41,7 @@
 이 앱은 별도 제품(다른 사용자층, 다른 배포 주기, 다른 브랜딩)이므로 이 레포 안에 폴더 하나 추가하는 방식보다 **별도 git 레포**를 추천.
 
 이유:
-- 이 레포의 릴리즈 자동화(`npm run release`, `scripts/cleanup-releases.sh`, `SteveKim0513/mac-shortcut-manager`에 스코프된 GH_TOKEN)가 이 레포 하나에 고정 배선되어 있어, 다른 번들 ID·아이콘·버전 체계를 가진 앱을 같이 넣으면 자동화가 꼬인다.
+- 이 레포의 릴리즈 자동화(`npm run release`, `scripts/cleanup-releases.sh`, `hack-vibe-x/mac-shortcut-manager`에 스코프된 GH_TOKEN)가 이 레포 하나에 고정 배선되어 있어, 다른 번들 ID·아이콘·버전 체계를 가진 앱을 같이 넣으면 자동화가 꼬인다.
 - 두 앱의 엔진은 시간이 지나며 갈라질 가능성이 크다(배포용 앱은 폴더 워처·핫리로드가 불필요해질 수 있음). 처음부터 분리해두는 편이 나중에 떼어내는 것보다 싸다.
 
 ## 다음 단계 (실행 전)

@@ -1,6 +1,6 @@
 # E2E 테스트 — 배포 전 자동 검증
 
-`npm run dist`/`npm run release`는 실제로 서명·배포하기 전에 `npm run test:e2e`를 먼저 통과해야 한다(둘 다 `test:e2e &&` 로 시작). 스토어 화면이 뜨는지, 그리고 무엇보다 서비스 스크립트가 띄우는 **팝업이 실제로 동작하는지**를 사람이 `npm run dev`로 하나하나 눌러보지 않아도 배포 커맨드 자체가 확인해준다 — [mind-map-mac](../mind-map)의 `make pre-release`(Playwright E2E로 게이트한 뒤에만 배포)와 같은 발상이다.
+`npm run dist`/`npm run release`는 실제로 서명·배포하기 전에 `npm run test:e2e`를 먼저 통과해야 한다(둘 다 `test:e2e &&` 로 시작). 스토어 화면이 뜨는지, 그리고 무엇보다 서비스 스크립트가 띄우는 **팝업이 실제로 동작하는지**를 사람이 `npm run dev`로 하나하나 눌러보지 않아도 배포 커맨드 자체가 확인해준다 — [hack-mind-map-for-mac](../hack-mind-map-for-mac)의 `make pre-release`(Playwright E2E로 게이트한 뒤에만 배포)와 같은 발상이다.
 
 ## 왜 필요했나
 
@@ -17,7 +17,7 @@ Electron 팝업(`electron/popupWindow.ts`)은 로컬 유닉스 소켓(`electron/
 `e2e/helpers.ts`의 `launchApp()`이 Playwright의 `_electron` 드라이버로 패키지된(`dist-electron/main.js`) HackMac을 직접 띄운다:
 
 - `HACKMAC_USER_DATA=<임시 폴더>` — 실제 실행 중인 앱이나 다른 테스트 인스턴스와 설정 파일·popup 소켓·`requestSingleInstanceLock()`이 전혀 겹치지 않는다(`electron/main.ts`).
-- `HACKMAC_E2E_QUIET=1` — 창을 화면 밖(-3000, -3000) 좌표에 띄우고 `showInactive()`로 보여준다. Playwright는 CDP로 창 내용을 직접 읽고 조작하므로 실제로 화면에 보이거나 OS 포커스를 가져갈 필요가 없다 — [mind-map-mac](../mind-map)의 `MINDMAP_E2E_QUIET`과 같은 패턴.
+- `HACKMAC_E2E_QUIET=1` — 창을 화면 밖(-3000, -3000) 좌표에 띄우고 `showInactive()`로 보여준다. Playwright는 CDP로 창 내용을 직접 읽고 조작하므로 실제로 화면에 보이거나 OS 포커스를 가져갈 필요가 없다 — [hack-mind-map-for-mac](../hack-mind-map-for-mac)의 `MINDMAP_E2E_QUIET`과 같은 패턴.
 
 `npm run test:e2e`가 먼저 `npm run build`로 `dist-electron/main.js`를 만들어둔 뒤 `playwright test`를 돌린다 — 이 전제(빌드된 결과물이 있어야 함) 때문에 `test:e2e` 스크립트 자체에 빌드가 포함돼 있다.
 

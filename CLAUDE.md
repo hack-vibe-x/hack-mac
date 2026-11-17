@@ -33,7 +33,7 @@ npm run release       # test:e2e 통과가 전제 + dist와 동일 + GitHub Rele
 
 - 완료 주장 전 최소 `npm run typecheck` (UI·electron 변경 시 `npm run build`까지) 실행.
 - UI/Electron 변경은 `npm run dev`로 실제 창을 띄워 확인한다.
-- **팝업(선택/입력/확인) 로직을 바꿨다면 `npm run test:e2e`로도 확인한다.** `npm run dev`로 실제 단축키를 눌러 확인하는 것과 별개로, 이 테스트는 사람 없이도 서비스 스크립트가 실제로 부르는 CLI(`resources/bin/hackmac-popup`)로 요청을 보내고 뜬 창을 직접 클릭/타이핑해 검증한다 — `npm run dist`/`release`가 이 통과를 전제로 하므로, 팝업이 깨진 채로는 애초에 배포 커맨드가 끝까지 진행되지 않는다. 자세한 구조와 함정(`app.getAppPath()`, `keyboard.press()` vs `.down()`)은 [docs/e2e.md](docs/e2e.md) 참고 — [mind-map-mac](../mind-map)의 `make pre-release`와 같은 발상이다.
+- **팝업(선택/입력/확인) 로직을 바꿨다면 `npm run test:e2e`로도 확인한다.** `npm run dev`로 실제 단축키를 눌러 확인하는 것과 별개로, 이 테스트는 사람 없이도 서비스 스크립트가 실제로 부르는 CLI(`resources/bin/hackmac-popup`)로 요청을 보내고 뜬 창을 직접 클릭/타이핑해 검증한다 — `npm run dist`/`release`가 이 통과를 전제로 하므로, 팝업이 깨진 채로는 애초에 배포 커맨드가 끝까지 진행되지 않는다. 자세한 구조와 함정(`app.getAppPath()`, `keyboard.press()` vs `.down()`)은 [docs/e2e.md](docs/e2e.md) 참고 — [hack-mind-map-for-mac](../hack-mind-map-for-mac)의 `make pre-release`와 같은 발상이다.
 - **E2E는 진짜 claude/codex 대신 가짜 CLI를 쓴다.** `e2e/helpers.ts`의 `launchApp({ claude, codex })`가 `modules/conversation/fixtures/fake-*.mjs`를 감싼 스크립트 폴더를 만들고 `HACKMAC_CLI_DIRS`로 넘긴다(`electron/studioHost.ts`는 이 변수가 있으면 그 폴더에서만 CLI를 찾는다). 기본은 Claude만 로그인 — 그래서 기존 스토어 시험은 첫 실행 화면 없이 홈으로 간다. 진짜 엔진으로 실제 창에서 대화해 보려면 `HACKMAC_REAL_ENGINES=1 npx playwright test e2e/real.spec.ts`(구독 사용량을 조금 쓴다).
 - 패키지 매니저는 npm만 쓴다.
 - `npm run dev`/`dist`는 각각 `predev`/`predist` 훅으로 `kill:dev`(이 프로젝트의 `node_modules/electron/dist/Electron.app` 경로로 실행 중인 dev 프로세스를 찾아 종료)를 자동 실행한다.
@@ -42,7 +42,7 @@ npm run release       # test:e2e 통과가 전제 + dist와 동일 + GitHub Rele
 
 미서명 앱을 다른 Mac에서 열면(특히 macOS Sequoia 이후) 첫 실행 팝업에 "그래도 열기" 버튼 자체가 없고, 시스템 설정 → 개인정보 보호 및 보안까지 들어가야 열기 버튼이 나타난다 — 안내 없이는 사용자가 찾기 어렵다. 이 프로젝트는 Developer ID Application 인증서(`Imagine Furtures Co.,Ltd.`, Team ID `493CJL5C9A`)가 있으므로, 서명 + 공증을 붙이면 이 경고 자체가 사라진다(정상적인 "열기" 다이얼로그로 바뀜).
 
-- `package.json`의 `build.mac.hardenedRuntime: true`는 이미 켜져 있고, `identity`는 지정하지 않아 electron-builder가 Keychain에서 Developer ID Application 인증서를 자동으로 찾는다 (`security find-identity -v -p codesigning`으로 확인 가능). electron-builder(`@electron/notarize`, `node_modules/app-builder-lib/out/macPackager.js`의 `notarizeIfProvided`)는 공증 자격증명을 3가지 방식 중 하나로 받는데, 이 프로젝트는 **Keychain 프로필** 방식을 쓴다 — mac-shortcut-manager 계열 다른 프로젝트(mind-map-mac)와 동일한 관례. 평문 비밀번호를 담은 파일(`.env` 등)을 디스크에 두지 않기 위해서다.
+- `package.json`의 `build.mac.hardenedRuntime: true`는 이미 켜져 있고, `identity`는 지정하지 않아 electron-builder가 Keychain에서 Developer ID Application 인증서를 자동으로 찾는다 (`security find-identity -v -p codesigning`으로 확인 가능). electron-builder(`@electron/notarize`, `node_modules/app-builder-lib/out/macPackager.js`의 `notarizeIfProvided`)는 공증 자격증명을 3가지 방식 중 하나로 받는데, 이 프로젝트는 **Keychain 프로필** 방식을 쓴다 — mac-shortcut-manager 계열 다른 프로젝트(hack-mind-map-for-mac)와 동일한 관례. 평문 비밀번호를 담은 파일(`.env` 등)을 디스크에 두지 않기 위해서다.
 - 최초 1회만 등록하면 된다 (이미 이 Mac에는 등록돼 있음):
   ```bash
   xcrun notarytool store-credentials "hackmac-notary" \
@@ -60,17 +60,17 @@ npm run release       # test:e2e 통과가 전제 + dist와 동일 + GitHub Rele
 
 ## 자동 업데이트 (GitHub Releases)
 
-`electron/updater.ts`가 `electron-updater`로 앱 시작 10초 후 한 번, 이후 4시간마다 배경에서 새 버전을 확인한다(패키지 빌드에서만 — `npm run dev`는 비활성). 새 버전을 받으면 "지금 재시동 / 나중에" 네이티브 다이얼로그를 띄우고, "나중에"는 다음 종료 시 자동 적용된다. mind-map-mac과 같은 구조.
+`electron/updater.ts`가 `electron-updater`로 앱 시작 10초 후 한 번, 이후 4시간마다 배경에서 새 버전을 확인한다(패키지 빌드에서만 — `npm run dev`는 비활성). 새 버전을 받으면 "지금 재시동 / 나중에" 네이티브 다이얼로그를 띄우고, "나중에"는 다음 종료 시 자동 적용된다. hack-mind-map-for-mac과 같은 구조.
 
-- 배포처는 `github.com/SteveKim0513/hackmac` (Public repo — mind-map-mac과 같은 계정 별칭 `git@github.com-stevekim:...` 사용). Public이라 업데이트 확인/다운로드엔 토큰이 필요 없다(Private로 하면 토큰을 앱에 내장해야 해서 배포되는 바이너리마다 개인 계정 토큰이 노출되므로 일부러 Public으로 함).
+- 배포처는 `github.com/hack-vibe-x/hack-mac` (Public repo — hack-mind-map-for-mac과 같은 계정 별칭 `git@github.com-stevekim:...` 사용). Public이라 업데이트 확인/다운로드엔 토큰이 필요 없다(Private로 하면 토큰을 앱에 내장해야 해서 배포되는 바이너리마다 개인 계정 토큰이 노출되므로 일부러 Public으로 함).
 - `npm run dist`는 여전히 `--publish never`라 실제 릴리스는 안 올라간다 — 로컬에서 서명 확인만 하고 싶을 때 씀.
-- **실제로 새 버전을 배포하려면 `package.json`의 `version`을 올리고 `npm run release`를 실행한다.** `GH_TOKEN=$(gh auth token --user SteveKim0513)`을 자동으로 넘겨서 서명 → 공증 → GitHub Release(태그 `v<version>`) 생성 → 자산(dmg/zip/blockmap/`latest-mac.yml`) 업로드까지 한 번에 끝낸다.
+- **실제로 새 버전을 배포하려면 `package.json`의 `version`을 올리고 `npm run release`를 실행한다.** `GH_TOKEN=$(gh auth token --user hack-vibe-x)`을 자동으로 넘겨서 서명 → 공증 → GitHub Release(태그 `v<version>`) 생성 → 자산(dmg/zip/blockmap/`latest-mac.yml`) 업로드까지 한 번에 끝낸다.
 - **`npm run release`(electron-builder `--publish always`)는 커밋을 `git push`하지 않는다 — GitHub Releases API로 릴리스/태그만 만든다.** 로컬 커밋을 push하지 않은 채로 이 명령을 반복하면, 매번 만들어지는 태그가 실제로는 origin의 정체된 옛 커밋을 가리키게 된다(빌드 자체는 로컬 워킹트리 기준이라 바이너리는 맞지만, GitHub 태그가 가리키는 소스 커밋은 틀어짐) — 실제로 v0.2.0~v0.2.3 태그가 전부 v0.1.2 커밋을 가리키고 있는 걸 발견했다(로컬 main이 origin보다 6커밋 앞서 있었던 게 원인). **버전을 올리는 커밋을 만들었으면 `npm run release` 전에 반드시 `git push`부터 한다.**
 - **electron-builder는 릴리스를 기본적으로 draft(비공개 초안)로 만든다.** `electron-updater`는 draft를 못 찾으므로, `npm run release` 후 반드시 draft를 풀어야 실제 사용자에게 업데이트가 보인다:
   ```bash
-  GH_TOKEN=$(gh auth token --user SteveKim0513) gh release edit v<version> --repo SteveKim0513/hackmac --draft=false
+  GH_TOKEN=$(gh auth token --user hack-vibe-x) gh release edit v<version> --repo hack-vibe-x/hack-mac --draft=false
   ```
-- SteveKim0513 계정으로 릴리스를 올리려면 그 Mac에 `gh auth login`으로 SteveKim0513 계정이 등록돼 있어야 한다(`gh auth token --user SteveKim0513`이 토큰을 돌려줄 수 있어야 함) — 다른 Mac에서 처음 배포할 땐 이것부터 확인.
+- hack-vibe-x 계정으로 릴리스를 올리려면 그 Mac에 `gh auth login`으로 hack-vibe-x 계정이 등록돼 있어야 한다(`gh auth token --user hack-vibe-x`이 토큰을 돌려줄 수 있어야 함) — 다른 Mac에서 처음 배포할 땐 이것부터 확인.
 
 ## Architecture
 

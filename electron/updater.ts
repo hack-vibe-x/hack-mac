@@ -5,9 +5,9 @@ import { requestPopup } from './popupWindow';
 import type { UpdateCheckResult } from '../shared/types';
 
 /**
- * Auto-update via GitHub Releases (github.com/SteveKim0513/hackmac, public —
+ * Auto-update via GitHub Releases (github.com/hack-vibe-x/hack-mac, public —
  * update checks need no token; publishing does, via GH_TOKEN at `dist` time).
- * Same shape as mind-map-mac's electron/updater.ts.
+ * Same shape as hack-mind-map-for-mac's electron/updater.ts.
  *
  * The user only hears about an update once it's fully downloaded, via
  * HackMac's own 팝업("지금 재시동 / 나중에") — CLAUDE.md의 "사용자가 보는 화면은
